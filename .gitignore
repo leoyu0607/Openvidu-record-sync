@@ -51,3 +51,6 @@ temp/
 #attachments/
 attachment/
 gw_attachment/
+
+#保留Config.json文件
+!Config.json
