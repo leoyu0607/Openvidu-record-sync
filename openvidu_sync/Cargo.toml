@@ -2,6 +2,13 @@
 name = "openvidu_sync"
 version = "0.1.0"
 edition = "2021"
+authors = ["LeoYu"]
+license = "MIT"
+description = "OpenVidu recording sync tool"
+readme = "README.md"
+repository = "https://github.com/leoyu0607/Openvidu-record-sync"
+keywords = ["openvidu", "sync", "recording"]
+categories = ["command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
