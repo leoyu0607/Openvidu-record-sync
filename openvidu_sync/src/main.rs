@@ -40,21 +40,8 @@ fn scan_directory(path: &str) -> anyhow::Result<Vec<RecordInfo>> {
             let name = entry.file_name().to_string_lossy().into_owned();
             let status_file_name = format!(".recording.{}", name);
             let status_file = fs::read_to_string(entry.path().join(&status_file_name))?;
-            let record_status = match fs::read_to_string(&status_file) {
-                Ok(status_file) => {
-                    match serde_json::from_str::<Value>(&status_file) {
-                        Ok(v) => v["status"].as_str().unwrap_or("").to_string(),
-                        Err(e) => {
-                            eprintln!("JSON parse error in {:?}: {}", status_file, e);
-                            continue; // 這個目錄跳過，整體繼續
-                        }
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Failed to read status file {:?}: {}", status_file, e);
-                    continue;
-                }
-            };
+            let v: Value = serde_json::from_str(&status_file)?;
+            let record_status = v["status"].as_str().unwrap_or("").to_string();
             let synced_status = is_synced(&entry.path().to_string_lossy());
             result.push(RecordInfo { dir_name :name, status:record_status, synced:synced_status } );
         }
