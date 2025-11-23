@@ -1,21 +1,25 @@
-use std::{env,fs,process::Command,path::Path};
+use std::{env,fs,io,process::Command,path::Path};
 use serde::Deserialize;
 use serde_json;
 use serde_json::Value;
+use log::{info, warn, error};
+use simplelog::{CombinedLogger, WriteLogger, ConfigBuilder, LevelFilter};
+use time::macros::format_description;
+use time::UtcOffset;
 
 #[derive(Deserialize, Debug)]
 struct Config {
     mount_dir:  String,
     record_dir: String,
+    log_file:  String,
+    user:      String,
+    group:     String,
 }
 impl Config {
     fn load_from_file() -> anyhow::Result<Self> {
         let exe_path = env::current_exe()?;
-        //println!("exe path:{:?}", exe_path);
         let exe_dir = exe_path.parent().unwrap();
-        //println!("exe_dir:{:?}", exe_dir);
         let config_path = exe_dir.join("Config.json");
-        //print!("config_path:{:?}\n", config_path);
         let data = fs::read_to_string(config_path)?;
         let config: Self = serde_json::from_str(&data)?;
         Ok(config)
@@ -30,6 +34,27 @@ struct RecordInfo {
     synced: bool,
 }
 
+fn init_logger(path: &str) {
+    let file = fs::OpenOptions::new()
+        .create(true)  // 檔案不存在就建立
+        .append(true)  // 追加模式，不覆寫
+        .open(path)
+        .expect("Failed to open log file");
+
+    let log_cfg = ConfigBuilder::new()
+        .set_time_offset(UtcOffset::current_local_offset().unwrap())
+        .set_time_format_custom(format_description!("[year]-[month]-[day] [hour]:[minute]:[second]"))
+        .build();
+
+    CombinedLogger::init(vec![
+        WriteLogger::new(
+            LevelFilter::Info,
+            log_cfg,
+            file,
+        ),
+    ])
+        .expect("Failed to initialize logger");
+}
 fn scan_directory(path: &str) -> anyhow::Result<Vec<RecordInfo>> {
     let mut result: Vec<RecordInfo> = Vec::new();
 
@@ -42,7 +67,7 @@ fn scan_directory(path: &str) -> anyhow::Result<Vec<RecordInfo>> {
             let status_file = fs::read_to_string(entry.path().join(&status_file_name))?;
             let v: Value = serde_json::from_str(&status_file)?;
             let record_status = v["status"].as_str().unwrap_or("").to_string();
-            let synced_status = is_synced(&entry.path().to_string_lossy());
+            let synced_status = is_synced(&entry.path());
             result.push(RecordInfo { dir_name :name, status:record_status, synced:synced_status } );
         }
     }
@@ -50,7 +75,7 @@ fn scan_directory(path: &str) -> anyhow::Result<Vec<RecordInfo>> {
     Ok(result)
 }
 
-fn write_tag(dir: &str) -> std::io::Result<()> {
+fn write_tag(dir: &str) -> io::Result<()> {
     let tag_file = format!("{}/.synced", dir);
     let tag_tmp = format!("{}/.synced.tmp", dir);
     fs::write(&tag_tmp,"synced")?;
@@ -58,49 +83,78 @@ fn write_tag(dir: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-fn is_synced(dir: &str) -> bool {
-    Path::new(dir).join(".synced").exists()
+fn is_synced(dir: &Path) -> bool {
+    dir.join(".synced").exists()
 }
 
 fn record_sync(src: &str, dst: &str) -> anyhow::Result<()> {
     let output = Command::new("rsync")
         .args([
-            "-avh",
+            "-rtv",
+            "--no-owner",
+            "--no-group",
             "--partial",
-            &src,
-            &dst,
+            src,
+            dst,
         ])
         .output()?;
-    if output.status.success() {write_tag(&src)?;}
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if output.status.success() {
+        write_tag(&src)?;
+        info!("rsync completed successfully for {}", src);
+    }
     if !output.status.success() {
+        error!("rsync failed for {}, stderr: {}", src, stderr);
         anyhow::bail!(
-            "rsync command failed with status: {}",
-            String::from_utf8_lossy(&output.stderr)
+            "rsync command failed with status: {}",stderr
         );
     }
     Ok(())
 }
 
+fn fix_permissions(user: &str,group: &str,dir: &str) -> anyhow::Result<()> {
+    let owner = format!("{}:{}", user, group);
+    let output = Command::new("chown")
+        .args(["-R", owner.as_str(), dir])
+        .output()?;
+    if output.status.success() {
+        info!("chown to {} succeeded for {}.", owner, dir);
+        Ok(())
+    }
+    else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        error!("chown to {} failed for {}.", owner, dir);
+        error!("caused by: {}", stderr);
+        anyhow::bail!("chown failed for {}", dir);
+    }
+}
+
 fn main() {
     let config = Config::load_from_file().unwrap();
-    println!("Mount Path:{}", config.mount_dir);
-    let record_dir = &config.record_dir;
+    init_logger(config.log_file.as_str());
+    info!("Starting OpenVidu Record Sync Service");
+    info!("Sync Path:{}", config.mount_dir);
+    let record_dir = config.record_dir.as_str();
     let folders = scan_directory(record_dir).unwrap();
     for d in folders {
-        println!("Found dir:{}", d.dir_name);
-        println!("Record Status: {}", d.status);
-        println!("Synced status:{}", d.synced);
+        info!("Found record: {}", d.dir_name);
+        info!("Record Status: {}", d.status);
+        info!("Synced status: {}", d.synced);
         if d.status == "ready" && !d.synced {
             let src_path = format!("{}/{}/", record_dir, d.dir_name);
             let dst_path = format!("{}/{}", config.mount_dir, d.dir_name);
-            println!("Syncing from {} to {}", src_path, dst_path);
-            match record_sync(&src_path, &dst_path) {
-                Ok(_) => println!("Sync completed for {}", d.dir_name),
-                Err(e) => eprintln!("Error syncing {}: {}", d.dir_name, e),
+            info!("Syncing from {} to {}", src_path, dst_path);
+            match record_sync(&src_path.as_str(), &dst_path.as_str()) {
+                Ok(_) => {
+                    info!("Sync completed for {}", d.dir_name);
+                    if let Err(_e) = fix_permissions(&config.user.as_str(), &config.group.as_str(), &dst_path.as_str()) {}
+                }
+                Err(e) => error!("Error syncing {}: {}", d.dir_name, e),
             }
         } else if d.status == "ready" && d.synced {
-            println!("Skipping dir {} because this record have been synced!", d.dir_name);
+            warn!("Skipping dir {} because this record have been synced!", d.dir_name);
         }
-        else { println!("Skipping dir {} with status is {}", d.dir_name, d.status); }
+        else { warn!("Skipping dir {} with status is {}", d.dir_name, d.status); }
+
     }
 }

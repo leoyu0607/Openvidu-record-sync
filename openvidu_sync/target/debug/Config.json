@@ -1,4 +1,7 @@
 {
   "mount_dir": "/Users/leoyu/RustroverProjects/Openvidu-record-sync/gw_attachment",
-  "record_dir": "/Users/leoyu/RustroverProjects/Openvidu-record-sync/attachment/vd"
+  "record_dir": "/Users/leoyu/RustroverProjects/Openvidu-record-sync/attachment/vd",
+  "log_file": "/Users/leoyu/RustroverProjects/Openvidu-record-sync/openvidu-sync.log",
+  "user": "ecp",
+  "group": "ecp"
 }
