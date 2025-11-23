@@ -1,0 +1,49 @@
+# ---- Rust / Cargo ----
+target/
+Cargo.lock
+**/*.rs.bk
+
+# build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+
+# cross build artifacts
+target/x86_64-unknown-linux-musl/
+target/x86_64-unknown-linux-gnu/
+target/aarch64-unknown-linux-gnu/
+
+# cargo-generate-rpm output
+target/generate-rpm/*.rpm
+target/generate-rpm/*.src.rpm
+
+# ---- macOS ----
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# RustRover / IntelliJ
+.idea/
+*.iml
+
+# ---- Linux ----
+*.swp
+*.swo
+
+# ---- Logs ----
+*.log
+log/
+logs/
+openvidu-sync.log
+
+# ---- temp files ----
+tmp/
+temp/
+*.tmp
+
+# ---- systemd unit test copies ----
+*.service~
+*.timer~
