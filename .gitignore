@@ -47,3 +47,7 @@ temp/
 # ---- systemd unit test copies ----
 *.service~
 *.timer~
+
+#attachments/
+attachments/
+gw_attachment/
