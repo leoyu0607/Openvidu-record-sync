@@ -159,9 +159,17 @@ fn main() {
                 Err(e) => error!("Error syncing {}: {}", d.dir_name, e),
             }
         } else if d.status == "ready" && d.synced {
+            debug!("Found record: {}", d.dir_name);
+            debug!("Record Status: {}", d.status);
+            debug!("Synced status: {}", d.synced);
             debug!("Skipping dir {} because this record have been synced!", d.dir_name);
         }
-        else { warn!("Skipping dir {} with status is {}", d.dir_name, d.status); }
+        else {
+            warn!("Found record: {}", d.dir_name);
+            warn!("Record Status: {}", d.status);
+            warn!("Synced status: {}", d.synced);
+            warn!("Skipping dir {} with status is {}", d.dir_name, d.status);
+        }
 
     }
 }

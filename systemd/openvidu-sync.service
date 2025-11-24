@@ -6,7 +6,7 @@ Type=oneshot
 User=root
 # Config.json 的目錄
 WorkingDirectory=/opt/openvidu-sync
-ExecStart=/usr/local/bin/openvidu_sync
+ExecStart=/opt/openvidu-sync/openvidu_sync
 
 # 保險：最多跑 15 分鐘，超過就被 systemd kill
 RuntimeMaxSec=900
