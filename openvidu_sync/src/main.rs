@@ -2,7 +2,7 @@ use std::{env,fs,io,process::Command,path::Path};
 use serde::Deserialize;
 use serde_json;
 use serde_json::Value;
-use log::{info, warn, error};
+use log::{debug, info, warn, error};
 use simplelog::{CombinedLogger, WriteLogger, ConfigBuilder, LevelFilter};
 use time::macros::format_description;
 use time::UtcOffset;
@@ -12,6 +12,7 @@ struct Config {
     mount_dir:  String,
     record_dir: String,
     log_file:  String,
+    log_level: String,
     user:      String,
     group:     String,
 }
@@ -34,7 +35,7 @@ struct RecordInfo {
     synced: bool,
 }
 
-fn init_logger(path: &str) {
+fn init_logger(path: &str, level: LevelFilter) {
     let file = fs::OpenOptions::new()
         .create(true)  // 檔案不存在就建立
         .append(true)  // 追加模式，不覆寫
@@ -48,7 +49,7 @@ fn init_logger(path: &str) {
 
     CombinedLogger::init(vec![
         WriteLogger::new(
-            LevelFilter::Info,
+            level,
             log_cfg,
             file,
         ),
@@ -131,7 +132,13 @@ fn fix_permissions(user: &str,group: &str,dir: &str) -> anyhow::Result<()> {
 
 fn main() {
     let config = Config::load_from_file().unwrap();
-    init_logger(config.log_file.as_str());
+    init_logger(config.log_file.as_str(), match config.log_level.to_uppercase().as_str() {
+        "DEBUG" => LevelFilter::Debug,
+        "INFO" => LevelFilter::Info,
+        "WARN" => LevelFilter::Warn,
+        "ERROR" => LevelFilter::Error,
+        _ => LevelFilter::Info,
+    });
     info!("Starting OpenVidu Record Sync Service");
     info!("Sync Path:{}", config.mount_dir);
     let record_dir = config.record_dir.as_str();
@@ -152,7 +159,7 @@ fn main() {
                 Err(e) => error!("Error syncing {}: {}", d.dir_name, e),
             }
         } else if d.status == "ready" && d.synced {
-            warn!("Skipping dir {} because this record have been synced!", d.dir_name);
+            debug!("Skipping dir {} because this record have been synced!", d.dir_name);
         }
         else { warn!("Skipping dir {} with status is {}", d.dir_name, d.status); }
 
