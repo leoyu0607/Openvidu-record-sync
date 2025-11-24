@@ -1,0 +1,13 @@
+[Unit]
+Description=Run openvidu-sync every 10 minutes
+
+[Timer]
+# 開機後 5 分鐘跑一次
+OnBootSec=5min
+# 從上次執行結束後再過 10 分鐘再跑
+OnUnitActiveSec=10min
+# 如果機器關機期間錯過執行，開機後會補跑一次
+Persistent=true
+
+[Install]
+WantedBy=timers.target

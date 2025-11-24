@@ -1,0 +1,8 @@
+{
+  "mount_dir": "/mnt/gw_attachment",
+  "record_dir": "/opt/openvidu/attachment/vd",
+  "log_file": "/opt/openvidu-sync/openvidu-sync.log",
+  "log_level": "INFO",
+  "user": "ecp",
+  "group": "ecp"
+}
