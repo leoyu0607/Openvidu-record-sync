@@ -144,10 +144,10 @@ fn main() {
     let record_dir = config.record_dir.as_str();
     let folders = scan_directory(record_dir).unwrap();
     for d in folders {
-        info!("Found record: {}", d.dir_name);
-        info!("Record Status: {}", d.status);
-        info!("Synced status: {}", d.synced);
         if d.status == "ready" && !d.synced {
+            info!("Found record: {}", d.dir_name);
+            info!("Record Status: {}", d.status);
+            info!("Synced status: {}", d.synced);
             let src_path = format!("{}/{}/", record_dir, d.dir_name);
             let dst_path = format!("{}/{}", config.mount_dir, d.dir_name);
             info!("Syncing from {} to {}", src_path, dst_path);
